@@ -1,0 +1,135 @@
+I"':<hr />
+<h2 id="遇到的问题">遇到的问题</h2>
+
+<p>假设这样一个场景，在Unity中，你自己编写了一个EditorWindow用于创建一些一行一行的文本配置，其数据结构如下：</p>
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">[</span><span class="n">Serializable</span><span class="p">]</span>
+<span class="k">public</span> <span class="k">class</span> <span class="nc">MyClass</span>
+<span class="p">{</span>
+    <span class="k">public</span> <span class="kt">string</span> <span class="n">label</span> <span class="p">=</span> <span class="kt">string</span><span class="p">.</span><span class="n">Empty</span><span class="p">;</span>
+    <span class="k">public</span> <span class="kt">bool</span> <span class="n">enable</span> <span class="p">=</span> <span class="k">false</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>同时存在一个编辑窗口，用于显示一个List<MyClass>方便策划编辑，该Window界面如下：</MyClass></p>
+
+<p><img src="../assets/img/ControlID/pic.png" alt="pic" /></p>
+
+<p>我们要实现的功能是点击每一行数据后方的两个按钮来在该行数据位置添加新数据与删除该位置的数据，删除操作非常简单，在此略过，现在我们来讨论添加操作，并且引出我们的问题：</p>
+
+<p><strong>如何在点击“+”按钮后把焦点自动设置为新增加的那一行数据的文本输入栏？</strong></p>
+
+<p>换句话说，如何实现下图的效果？</p>
+
+<p><img src="../assets/img/ControlID/view.gif" alt="preview" /></p>
+
+<hr />
+<h2 id="解决方案">解决方案</h2>
+<p>在解决此方案之前，首先要明确Unity对Inspector上的所有控件的定义，在Inspector上的所有控件称为“<strong>Control</strong>”，每个Control拥有一个唯一的<strong>ControlID</strong>与<strong>ControlName</strong>。</p>
+
+<p>那么如何去获取当前焦点所对应的ControlID呢？通过查阅API文档得知，我们可以使用<code class="language-plaintext highlighter-rouge">EditorGUIUtility.hotControl</code>来获取到当前/上一焦点所对应的Control的ControlID，同样的，我们可以通过<code class="language-plaintext highlighter-rouge">EditorGUIUtility.GetControlID</code>来获取一个唯一的可分配的controlID，API文档中对此方法的注释为</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Get a unique ID for a control, using an integer as a hint to help ensure correct matching of IDs to controls.
+</code></pre></div></div>
+
+<p>同时，我们对焦点的控制可以直接操作EditorGUIUtility.hotControl属性。</p>
+
+<p>新的问题来了，我们如何去获取某一特定Control的ControlID呢？</p>
+
+<p>很遗憾，目前我没有找到完全可行的方法，但是通过观察hotControl我发现，其ID对应面板上是按照从上至下，从左至右依次递增的规律分配的。利用这个规律，我们就可以推算出一个大概的数字来对ControlID实行手动控制了。</p>
+
+<p>那么是不是就只有这样一种办法了呢？</p>
+
+<p>显然，不是。对于文本输入Control（即对应TextField或者TextArea）来说，我们可以使用<code class="language-plaintext highlighter-rouge">EditorGUI.FocusTextInControl(string name)</code>方法来实现手动定位，此方法在API文档中给出的注释为</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Move keyboard focus to a named text field and begin editing of the content.
+</code></pre></div></div>
+
+<p>这样显然是满足需求了。但是新的问题又来了，如何去确定/分配每个Control的ControlName呢？</p>
+
+<p>继续查阅API文档得知，我们可以通过<code class="language-plaintext highlighter-rouge">GUI.SetNextControlName(string name)</code>方法来给下一个绘制的Control分配ControlName。</p>
+
+<p>文档查到这里，就可以关掉了，已知的条件已经完全可以满足我们的需求了。</p>
+
+<p>其主要思路如下：</p>
+
+<ol>
+  <li>在遍历List时，对每一个TextField分配一个自定义的ControlName</li>
+  <li>在点击“+”按钮时指定下一次刷新时焦点所对应的Name</li>
+  <li>在下一个刷新时，将焦点指定为在第2步中所设置的Name的Control</li>
+</ol>
+
+<p>经历这些步骤，我们可以迅速完成编码，其Window代码如下：</p>
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">//ORG: Ghostyii &amp; MOONLIGHTGAME</span>
+<span class="k">using</span> <span class="nn">System</span><span class="p">;</span>
+<span class="k">using</span> <span class="nn">System.Collections.Generic</span><span class="p">;</span>
+<span class="k">using</span> <span class="nn">UnityEditor</span><span class="p">;</span>
+<span class="k">using</span> <span class="nn">UnityEngine</span><span class="p">;</span>
+
+<span class="k">public</span> <span class="k">class</span> <span class="nc">MyEditorWindow</span> <span class="p">:</span> <span class="n">EditorWindow</span>
+<span class="p">{</span>
+    <span class="k">private</span> <span class="kt">bool</span> <span class="n">foldout</span> <span class="p">=</span> <span class="k">true</span><span class="p">;</span>
+    <span class="k">private</span> <span class="kt">string</span> <span class="n">ctrlName</span> <span class="p">=</span> <span class="kt">string</span><span class="p">.</span><span class="n">Empty</span><span class="p">;</span>
+    <span class="k">private</span> <span class="n">List</span><span class="p">&lt;</span><span class="n">MyClass</span><span class="p">&gt;</span> <span class="n">myList</span> <span class="p">=</span> <span class="k">new</span> <span class="n">List</span><span class="p">&lt;</span><span class="n">MyClass</span><span class="p">&gt;();</span>
+
+    <span class="k">private</span> <span class="k">void</span> <span class="nf">OnEnable</span><span class="p">()</span>
+    <span class="p">{</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">myList</span><span class="p">.</span><span class="n">Count</span> <span class="p">==</span> <span class="m">0</span><span class="p">)</span>
+            <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="p">=</span> <span class="m">0</span><span class="p">;</span> <span class="n">i</span> <span class="p">&lt;</span> <span class="m">3</span><span class="p">;</span> <span class="n">i</span><span class="p">++)</span>
+                <span class="n">myList</span><span class="p">.</span><span class="nf">Add</span><span class="p">(</span><span class="k">new</span> <span class="nf">MyClass</span><span class="p">()</span> <span class="p">{</span> <span class="n">label</span> <span class="p">=</span> <span class="kt">string</span><span class="p">.</span><span class="nf">Format</span><span class="p">(</span><span class="s">"label{0}"</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span> <span class="p">});</span>
+    <span class="p">}</span>
+
+    <span class="k">private</span> <span class="k">void</span> <span class="nf">OnGUI</span><span class="p">()</span>
+    <span class="p">{</span>       
+        <span class="n">foldout</span> <span class="p">=</span> <span class="n">EditorGUILayout</span><span class="p">.</span><span class="nf">BeginFoldoutHeaderGroup</span><span class="p">(</span><span class="n">foldout</span><span class="p">,</span> <span class="s">"List"</span><span class="p">);</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">foldout</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="p">=</span> <span class="m">0</span><span class="p">;</span> <span class="n">i</span> <span class="p">&lt;</span> <span class="n">myList</span><span class="p">.</span><span class="n">Count</span><span class="p">;</span> <span class="n">i</span><span class="p">++)</span>
+            <span class="p">{</span>
+                <span class="kt">var</span> <span class="n">item</span> <span class="p">=</span> <span class="n">myList</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
+                <span class="n">EditorGUILayout</span><span class="p">.</span><span class="nf">BeginHorizontal</span><span class="p">();</span>
+                <span class="n">EditorGUILayout</span><span class="p">.</span><span class="nf">LabelField</span><span class="p">(</span><span class="s">"String:"</span><span class="p">,</span> <span class="n">GUILayout</span><span class="p">.</span><span class="nf">Width</span><span class="p">(</span><span class="m">40</span><span class="p">));</span>
+
+                <span class="n">GUI</span><span class="p">.</span><span class="nf">SetNextControlName</span><span class="p">(</span><span class="s">"id"</span> <span class="p">+</span> <span class="n">i</span><span class="p">);</span>
+
+                <span class="n">item</span><span class="p">.</span><span class="n">label</span> <span class="p">=</span> <span class="n">EditorGUILayout</span><span class="p">.</span><span class="nf">TextField</span><span class="p">(</span><span class="n">item</span><span class="p">.</span><span class="n">label</span><span class="p">,</span> <span class="n">GUILayout</span><span class="p">.</span><span class="nf">Width</span><span class="p">(</span><span class="n">position</span><span class="p">.</span><span class="n">width</span> <span class="p">-</span> <span class="m">125</span><span class="p">));</span>
+                <span class="n">item</span><span class="p">.</span><span class="n">enable</span> <span class="p">=</span> <span class="n">EditorGUILayout</span><span class="p">.</span><span class="nf">Toggle</span><span class="p">(</span><span class="n">item</span><span class="p">.</span><span class="n">enable</span><span class="p">,</span> <span class="n">GUILayout</span><span class="p">.</span><span class="nf">Width</span><span class="p">(</span><span class="m">20</span><span class="p">));</span>
+
+                <span class="k">if</span> <span class="p">(</span><span class="n">GUILayout</span><span class="p">.</span><span class="nf">Button</span><span class="p">(</span><span class="s">"+"</span><span class="p">,</span> <span class="n">EditorStyles</span><span class="p">.</span><span class="n">miniButtonLeft</span><span class="p">,</span> <span class="n">GUILayout</span><span class="p">.</span><span class="nf">Width</span><span class="p">(</span><span class="m">25</span><span class="p">)))</span>
+                <span class="p">{</span>
+                    <span class="n">myList</span><span class="p">.</span><span class="nf">Insert</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="k">new</span> <span class="nf">MyClass</span><span class="p">()</span> <span class="p">{</span> <span class="n">label</span> <span class="p">=</span> <span class="s">"new label"</span> <span class="p">});</span>
+                    <span class="n">ctrlName</span> <span class="p">=</span> <span class="s">"id"</span> <span class="p">+</span> <span class="n">i</span><span class="p">;</span>
+                    <span class="c1">//已经对list作出改动，本次刷新无需再遍历list，使用break跳出循环</span>
+                    <span class="n">EditorGUILayout</span><span class="p">.</span><span class="nf">EndHorizontal</span><span class="p">();</span>
+                    <span class="k">break</span><span class="p">;</span>
+                <span class="p">}</span>
+
+                <span class="k">if</span> <span class="p">(</span><span class="n">GUILayout</span><span class="p">.</span><span class="nf">Button</span><span class="p">(</span><span class="s">"-"</span><span class="p">,</span> <span class="n">EditorStyles</span><span class="p">.</span><span class="n">miniButtonRight</span><span class="p">,</span> <span class="n">GUILayout</span><span class="p">.</span><span class="nf">Width</span><span class="p">(</span><span class="m">25</span><span class="p">)))</span>
+                <span class="p">{</span>
+                    <span class="n">myList</span><span class="p">.</span><span class="nf">RemoveAt</span><span class="p">(</span><span class="n">i</span><span class="p">);</span>
+                    <span class="c1">//已经对list作出改动，本次刷新无需再遍历list，使用break跳出循环</span>
+                    <span class="n">EditorGUILayout</span><span class="p">.</span><span class="nf">EndHorizontal</span><span class="p">();</span>
+                    <span class="k">break</span><span class="p">;</span>
+                <span class="p">}</span>
+
+                <span class="n">EditorGUILayout</span><span class="p">.</span><span class="nf">EndHorizontal</span><span class="p">();</span>
+            <span class="p">}</span>
+
+            <span class="k">if</span> <span class="p">(!</span><span class="kt">string</span><span class="p">.</span><span class="nf">IsNullOrEmpty</span><span class="p">(</span><span class="n">ctrlName</span><span class="p">))</span>
+            <span class="p">{</span>
+                <span class="n">EditorGUI</span><span class="p">.</span><span class="nf">FocusTextInControl</span><span class="p">(</span><span class="n">ctrlName</span><span class="p">);</span>
+                <span class="n">ctrlName</span> <span class="p">=</span> <span class="kt">string</span><span class="p">.</span><span class="n">Empty</span><span class="p">;</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+        <span class="n">EditorGUILayout</span><span class="p">.</span><span class="nf">EndFoldoutHeaderGroup</span><span class="p">();</span>        
+    <span class="p">}</span>
+
+    <span class="p">[</span><span class="nf">MenuItem</span><span class="p">(</span><span class="s">"Tools/MyWindow"</span><span class="p">)]</span>
+    <span class="k">private</span> <span class="k">static</span> <span class="k">void</span> <span class="nf">OpenWindow</span><span class="p">()</span>
+    <span class="p">{</span>
+        <span class="n">MyEditorWindow</span> <span class="n">window</span> <span class="p">=</span> <span class="n">CreateWindow</span><span class="p">&lt;</span><span class="n">MyEditorWindow</span><span class="p">&gt;();</span>
+        <span class="n">window</span><span class="p">.</span><span class="nf">Show</span><span class="p">();</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>至此，问题解决。</p>
+
+<hr />
+:ET

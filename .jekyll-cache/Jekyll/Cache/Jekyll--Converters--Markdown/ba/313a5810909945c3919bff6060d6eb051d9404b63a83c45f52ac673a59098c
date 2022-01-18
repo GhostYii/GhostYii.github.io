@@ -1,0 +1,132 @@
+I"�7<hr />
+<h2 id="0x0-引言">0x0. 引言</h2>
+<p>在第三人称游戏中，功能完善的游戏控制器对最终游戏的体验能有非常大的提升。在Unity游戏引擎中自带了一个叫做“<a href="https://docs.unity3d.com/2020.3/Documentation/Manual/class-CharacterController.html" target="blank">CharacterController</a>”的组件，该组件不需要添加额外的Rigidbody与Collider组件，实现了玩家控制的一些基本功能。一般情况下，该组件可以满足不同游戏的基础需求，该组件拥有可调节的斜坡自动上坡、最小移动距离与台阶偏移量等参数。<br />
+本文将介绍一种使用Rigidbody与Collider组件的角色控制器中的斜坡与楼梯行走的处理办法。</p>
+
+<h2 id="0x1-为什么要处理楼梯与斜坡">0x1. 为什么要处理楼梯与斜坡？</h2>
+<p>对3D游戏中的角色控制器而言，最简单的处理方式就是在FixedUpdate中对Rigidbody进行移动，下面的代码演示了最简单的角色控制器的移动。</p>
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">public</span> <span class="k">class</span> <span class="nc">Movement</span> <span class="p">:</span> <span class="n">MonoBehaviour</span>
+<span class="p">{</span>
+    <span class="k">public</span> <span class="kt">float</span> <span class="n">moveSpeed</span> <span class="p">=</span> <span class="m">10f</span><span class="p">;</span>
+    <span class="k">public</span> <span class="n">Rigidbody</span> <span class="n">rb</span> <span class="p">=</span> <span class="k">null</span><span class="p">;</span>
+
+    <span class="k">private</span> <span class="n">Vector3</span> <span class="n">moveDelta</span> <span class="p">=</span> <span class="n">Vector3</span><span class="p">.</span><span class="n">zero</span><span class="p">;</span>
+
+    <span class="k">void</span> <span class="nf">Start</span><span class="p">()</span>
+    <span class="p">{</span>
+        <span class="n">rb</span> <span class="p">=</span> <span class="n">GetComponent</span><span class="p">&lt;</span><span class="n">Rigidbody</span><span class="p">&gt;();</span>
+    <span class="p">}</span>
+
+    <span class="k">void</span> <span class="nf">Update</span><span class="p">()</span>
+    <span class="p">{</span>
+        <span class="n">moveDelta</span><span class="p">.</span><span class="n">x</span> <span class="p">=</span> <span class="n">Input</span><span class="p">.</span><span class="nf">GetAxis</span><span class="p">(</span><span class="s">"Horizontal"</span><span class="p">);</span>
+        <span class="n">moveDelta</span><span class="p">.</span><span class="n">z</span> <span class="p">=</span> <span class="n">Input</span><span class="p">.</span><span class="nf">GetAxis</span><span class="p">(</span><span class="s">"Vertical"</span><span class="p">);</span>
+
+        <span class="n">Vector3</span> <span class="n">move</span> <span class="p">=</span> <span class="n">moveDelta</span> <span class="p">*</span> <span class="n">moveSpeed</span><span class="p">;</span>
+        <span class="n">move</span><span class="p">.</span><span class="n">y</span> <span class="p">=</span> <span class="n">rb</span><span class="p">.</span><span class="n">velocity</span><span class="p">.</span><span class="n">y</span><span class="p">;</span>
+
+        <span class="n">rb</span><span class="p">.</span><span class="n">velocity</span> <span class="p">=</span> <span class="n">move</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>这种移动方式在一些基本地形上行走勉勉强强可以使用，如下图所示。
+<img src="../assets/img/CharacterController/simple_move.gif" alt="simple_move" /></p>
+
+<p>但是该方式由于过于简陋，其弊端也非常明显，主要体现在以下几个方面：</p>
+<ul>
+  <li>当速度稍大的时候，斜坡的上下坡会变得非常糟糕</li>
+  <li>完全无法跨越台阶一类的障碍物，需要进行跳跃操作</li>
+  <li>下楼梯完完全全是一场灾难</li>
+</ul>
+
+<p>具体的情况如下图所示。</p>
+
+<p><img src="../assets/img/CharacterController/move_error_0.gif" alt="move_error_0" />
+速度稍快的时候，上坡停止时角色会不由自主的向上飞一段距离，而下坡的时候角色完全不是沿着斜坡向下走，而更像是“跳着下了斜坡”。</p>
+
+<p><img src="../assets/img/CharacterController/move_error_1.gif" alt="move_error_1" />
+如果碰撞体没有做特殊处理，角色不仅无法在不跳跃的情况下上楼梯，更加对场景中地面上一些小型障碍物无法实现自动跨越。</p>
+
+<p><img src="../assets/img/CharacterController/move_error_2.gif" alt="move_error_2" />
+下楼梯根本不是在下楼梯，反而像是在跳楼。</p>
+
+<p>虽然说第三点在某些游戏中也并没有专门进行处理，当速度比较正常的时候这样的下楼梯方式在一定程度上也是可以接受的，但是这些情况说明了对角色的精细控制需要特别的对斜坡与楼梯（障碍物）进行特殊的处理。</p>
+
+<h2 id="0x2-解决方案">0x2. 解决方案</h2>
+<p>要解决这个问题，首先要明白为什么会导致这个问题。<br />
+对于斜坡问题，主要的原因是因为角色的移动方向导致的。这里的移动方向是由输入决定的，一般而言，输入是一个二维的输入，范围在[-1, 1]之间，对应游戏中的xoz平面的方向。这个方向在斜坡的上下坡时候与角色应当要移动的方向不匹配，主要是由于这个不匹配导致的问题。<br />
+所以解决这个问题的思路就很清晰了，在斜坡上移动方向应该要匹配斜坡的角度。<br />
+而楼梯问题，原因则是因为角色遇到这种非凸包的碰撞体，引擎的物理系统并不会把角色自动抬上去。所以解决楼梯问题的思路有两个，一个是把楼梯的碰撞体转化为凸包，这样这个问题又转换为斜坡问题，第二个思路就是手动把角色往楼梯上抬，完成这个物理系统不会自动完成的工作。</p>
+
+<h3 id="斜坡问题">斜坡问题</h3>
+<p>对斜坡问题而言，首先需要解决的是，如何判断角色是否处于斜坡上。这个问题的其中一个答案如下：角色是否处于斜坡上取决于角色与角色当前所位于的平面的法线向量是否与世界方向的上方对应。</p>
+
+<p><img src="../assets/img/CharacterController/judge_slope.png" alt="judge_slope" /></p>
+
+<p>如上图所示，绿色箭头表示玩家所处平面的法线方向，蓝色箭头表示世界方向的上方，粉色箭头表示玩家所处的平面。</p>
+
+<p>在Unity中实现如下：</p>
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">private</span> <span class="kt">bool</span> <span class="nf">IsSlope</span><span class="p">(</span><span class="n">Rigidbody</span> <span class="n">rb</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="kt">float</span> <span class="n">slopeHeightMaxDistance</span> <span class="p">=</span> <span class="m">2f</span><span class="p">;</span>
+    <span class="kt">float</span> <span class="n">heightOffset</span> <span class="p">=</span> <span class="m">2f</span><span class="p">;</span>
+
+    <span class="n">RaycastHit</span> <span class="n">hit</span><span class="p">;</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">Physics</span><span class="p">.</span><span class="nf">Raycast</span><span class="p">(</span><span class="n">rb</span><span class="p">.</span><span class="n">position</span> <span class="p">+</span> <span class="n">Vector3</span><span class="p">.</span><span class="n">up</span> <span class="p">*</span> <span class="n">heightOffset</span><span class="p">,</span> <span class="n">Vector3</span><span class="p">.</span><span class="n">down</span><span class="p">,</span> <span class="k">out</span> <span class="n">hit</span><span class="p">,</span> <span class="n">slopeHeightMaxDistance</span><span class="p">))</span>
+    <span class="p">{</span>
+        <span class="k">return</span> <span class="n">hit</span><span class="p">.</span><span class="n">normal</span> <span class="p">!=</span> <span class="n">Vector3</span><span class="p">.</span><span class="n">up</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="k">return</span> <span class="k">false</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>可以判断是否处于斜坡后，第二个问题是获取斜坡的方向向量，也就是获取到上图中粉色箭头的方向，该方向的正反取决于玩家当前的移动方向，该方向的计算方法为玩家的移动方向在角色所处平面的投影方向。这里的移动方向是原始的，错误的那个移动方向，在Unity中可以直接使用<code class="language-plaintext highlighter-rouge">Vector3.ProjectOnPlane</code>这个API来计算。<br />
+至此，解决方案已经出来了：<strong>角色处于斜坡上时，移动方向更新为斜坡的方向，不在斜坡上时，移动方向为输入的移动方向。</strong><br />
+使用该解决方案解决问题后，效果如下图所示。</p>
+
+<p><img src="../assets/img/CharacterController/slope_move.gif" alt="slope_move" /></p>
+
+<h3 id="楼梯问题">楼梯问题</h3>
+<p>楼梯问题在前文已经提出了解决方案，除去使用凸包碰撞体转为斜坡问题外，另外一种方案则是使用代码对角色进行自动抬起操作。<br />
+该方案需要解决的第一个问题是如何判断楼梯的存在，这里给出一个思路：</p>
+
+<p><img src="../assets/img/CharacterController/judge_stairs.png" alt="judge_stairs" /></p>
+
+<p>最上方代表移动方向，图中表示了两种方向下的区别，当移动方向在角色前方时，给定一个检测范围，在这个范围外向下进行射线检测，如图中蓝色标识（范围）与绿色虚线箭头（射线检测方向）。计算检测到的交点（绿色点）与角色自身脚所在的点（黄色点）的高度差（黄色标识），当这个高度差大于某一设定阈值时，判定为遇到楼梯或者障碍物。<br />
+明显看出，图中向左的时候会判定为遇到楼梯，向右走则不会判定为遇到楼梯。</p>
+
+<p>使用Unity代码实现如下：</p>
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">private</span> <span class="kt">bool</span> <span class="nf">IsStep</span><span class="p">(</span><span class="k">out</span> <span class="n">Vector3</span> <span class="n">point</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="n">Ray</span> <span class="n">ray</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">Ray</span><span class="p">(</span><span class="n">transform</span><span class="p">.</span><span class="n">position</span> <span class="p">+</span> <span class="n">MoveDirection</span><span class="p">.</span><span class="n">normalized</span> <span class="p">*</span> <span class="n">stepCheckRange</span> <span class="p">+</span> <span class="n">Vector3</span><span class="p">.</span><span class="n">up</span> <span class="p">*</span> <span class="n">stepCheckHeight</span><span class="p">,</span> <span class="n">Vector3</span><span class="p">.</span><span class="n">down</span><span class="p">);</span>
+    <span class="n">RaycastHit</span> <span class="n">hit</span><span class="p">;</span>
+    <span class="n">point</span> <span class="p">=</span> <span class="n">Vector3</span><span class="p">.</span><span class="n">zero</span><span class="p">;</span>
+
+    <span class="k">if</span> <span class="p">(!</span><span class="n">isGrounded</span><span class="p">)</span>
+        <span class="k">return</span> <span class="k">false</span><span class="p">;</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">Physics</span><span class="p">.</span><span class="nf">Raycast</span><span class="p">(</span><span class="n">ray</span><span class="p">,</span> <span class="k">out</span> <span class="n">hit</span><span class="p">,</span> <span class="n">stepCheckHeight</span> <span class="p">*</span> <span class="m">3</span><span class="p">,</span> <span class="n">groundLayer</span><span class="p">))</span>
+    <span class="p">{</span>
+        <span class="kt">float</span> <span class="n">height</span> <span class="p">=</span> <span class="n">hit</span><span class="p">.</span><span class="n">point</span><span class="p">.</span><span class="n">y</span> <span class="p">-</span> <span class="n">rb</span><span class="p">.</span><span class="n">position</span><span class="p">.</span><span class="n">y</span><span class="p">;</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">height</span> <span class="p">&lt;</span> <span class="m">0.06f</span><span class="p">)</span>
+            <span class="k">return</span> <span class="k">false</span><span class="p">;</span>
+
+        <span class="k">if</span> <span class="p">(</span><span class="n">height</span> <span class="p">&lt;=</span> <span class="n">maxStepHeight</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="n">point</span> <span class="p">=</span> <span class="n">hit</span><span class="p">.</span><span class="n">point</span><span class="p">;</span>
+            <span class="k">return</span> <span class="k">true</span><span class="p">;</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="k">false</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>判定完成之后，对角色进行抬起可以使用插值的方法进行，也可以使用Unity中Rigidbody里的“<a href="https://docs.unity3d.com/ScriptReference/Rigidbody.MovePosition.html" target="blank">MovePosition</a>”API。</p>
+
+<p>使用该方式完成后效果如下：</p>
+
+<p><img src="../assets/img/CharacterController/good_move.gif" alt="good_move" /></p>
+
+<hr />
+:ET

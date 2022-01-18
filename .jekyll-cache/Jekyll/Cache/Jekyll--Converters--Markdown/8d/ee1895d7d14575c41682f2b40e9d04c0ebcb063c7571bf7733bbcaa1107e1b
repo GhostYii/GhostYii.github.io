@@ -1,0 +1,142 @@
+I"�1<hr />
+<h2 id="引言">引言</h2>
+<p>在Unity中，对非移动平台输入的管理是通过InputManager来管理的，也就是UnityEngine自带的Input静态类来管理。而且在编辑器中提供了一个可视化的界面来管理。<br />
+这个界面可以通过 <code class="language-plaintext highlighter-rouge">Edit - Project Settings - Input</code>来打开。<br />
+<img src="../assets/img/UnityInput/inputmanagerview.png" alt="input manager" /><br />
+这套管理系统的使用方法不是本文重点暂且不表。<br />
+我认为这套系统并不是很好用，对于键盘输出可以使用Input.GetKey[Down/Up]等API来实现，但是对于游戏控制器（手柄）来说，这一套系统并不是很好用。</p>
+
+<h2 id="关于xbox架构的手柄适配">关于XBOX架构的手柄适配</h2>
+<p>关于手柄适配，Unity原生的解决方案可以说只是勉强能用的状态，使用Axis输入轴的概念管理，每一个输入轴需要开发者手动定义，而且给出的意义不明确，譬如这样：<br />
+<img src="../assets/img/UnityInput/axis.png" alt="axis" /><br />
+这多达几十个轴并没有详细说明对应手柄上的某一个按键或者摇杆。需要开发者自己去查找相应资料。<br />
+<img src="../assets/img/UnityInput/xboxinput.jpeg" alt="xbox" /><br />
+图片来源：<a href="http://www.voidcn.com/blog/egostudio/article/p-5979569.html">【xbox开发】unity3d xbox one手柄键位</a></p>
+
+<p>而且奇葩的一点是，Unity中对左扳机和右扳机视为一个轴，左扳机的范围在(-1,0)，右扳机的范围在(0,1)。这样就使得如果你想要做一款使用左扳机瞄准右扳机射击的游戏操作，用这个基本就歇菜了。而且如果你想要添加震动…<br />
+Unity5.6版本都没有提供官方的手柄震动API。</p>
+
+<h2 id="xinputinterfacedll">XInputInterface.dll</h2>
+<p>当然，得益于脚本语言采用C#和Unity良好的可拓展性，要寻找第三方解决方案非常非常容易，在Assets Store中随便搜索一下输入插件就可以找到一大堆，如下图：
+<img src="../assets/img/UnityInput/plugins.png" alt="assetstore" /></p>
+
+<p>当然，这些大都是收费的，而我个人比较倾向于开源且免费的东西，于是我发现了XInputInterface这一个解决方案。这个东西是一个外国人做的C#控制XBOX手柄的封装链接库。里面将C++里的一些函数封装好了。github开源地址：<a href="https://github.com/speps/XInputDotNet">XInputDotNet - Github</a></p>
+
+<h3 id="使用xinputinterfacedll">使用XInputInterface.dll</h3>
+<p>在使用之前，应该做的准备工作如下：</p>
+
+<ol>
+  <li>首先将XInputInterface.dll放入Unity工程根目录中，（即下图红色框路径，根据你的项目而改变）
+ <img src="../assets/img/UnityInput/path.png" alt="path" /></li>
+  <li>在Asset目录下新建Plugins文件夹，将XInputInterface.dll放入其中。</li>
+  <li>如何在脚本中使用此插件<br />
+a)	在需要使用手柄输入的脚本中引入XInputDotNetPure命名空间<br />
+b)	在脚本中使用PlayerIndex枚举类型进行识别玩家索引<br />
+c)	使用GamePadState 识别事件状态<br />
+d)	使用GamePad. SetVibration开启震动</li>
+</ol>
+
+<h3 id="几个简单的小示例">几个简单的小示例</h3>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">//判断是否有手柄连接</span>
+<span class="k">public</span> <span class="k">class</span> <span class="nc">InputController</span> <span class="p">:</span> <span class="n">MonoBehaviour</span> 
+<span class="p">{</span>
+    <span class="k">private</span> <span class="n">PlayerIndex</span> <span class="n">playerIndex</span><span class="p">;</span>
+    <span class="k">private</span> <span class="n">GamePadState</span> <span class="n">state</span><span class="p">;</span>
+
+    <span class="k">void</span> <span class="nf">Update</span><span class="p">()</span>
+    <span class="p">{</span>
+        <span class="n">state</span> <span class="p">=</span> <span class="n">GamePad</span><span class="p">.</span><span class="nf">GetState</span><span class="p">(</span><span class="m">0</span><span class="p">);</span>
+        <span class="c1">//使用state.IsConnected判断是否连接</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="c1">//判断按钮A是否按下</span>
+<span class="k">public</span> <span class="k">class</span> <span class="nc">InputController</span> <span class="p">:</span> <span class="n">MonoBehaviour</span> 
+<span class="p">{</span>
+    <span class="k">private</span> <span class="n">PlayerIndex</span> <span class="n">playerIndex</span><span class="p">;</span>
+    <span class="k">private</span> <span class="n">GamePadState</span> <span class="n">state</span><span class="p">;</span>
+
+    <span class="k">void</span> <span class="nf">Update</span><span class="p">()</span>
+    <span class="p">{</span>
+        <span class="n">state</span> <span class="p">=</span> <span class="n">GamePad</span><span class="p">.</span><span class="nf">GetState</span><span class="p">(</span><span class="m">0</span><span class="p">);</span>
+        <span class="c1">//使用state.Buttons.A == ButtonState.Pressed判断是否按下</span>
+        <span class="c1">//使用state.Buttons.A == ButtonState.Released判断是否抬起</span>
+        <span class="c1">//使用state.Triggers.Left判断左扳机按下程度</span>
+        <span class="c1">//使用GamePad.SetVibration(playerIndex, state.Triggers.Left, state.Triggers.Right);调动手柄左右两个震动马达	</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+
+</code></pre></div></div>
+
+<h2 id="对xinputinterface的一点小改进">对XInputInterface的一点小改进</h2>
+<p>在Unity中，对输入的API是非常规范和严谨的。可是在XInputInterface中并没有遵守Unity这样的规则对方法进行命名和操作，例如没有GetKey、GetButtonDown之类的方法。<br />
+而我更习惯Unity的那套命名方法，于是，我在XInputInterface的基础上加了一个静态类XInput来对该插件进行了一定的改进，并添加了一些新功能来适应Unity的使用习惯。</p>
+
+<p><img src="../assets/img/UnityInput/xinput.png" alt="xinput" /></p>
+
+<p>详细说明如下：</p>
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">//Xbox按钮枚举</span>
+<span class="k">public</span> <span class="k">enum</span> <span class="n">XboxButton</span>
+<span class="p">{</span>
+    <span class="n">X</span><span class="p">,</span>
+    <span class="n">Y</span><span class="p">,</span>
+    <span class="n">A</span><span class="p">,</span>
+    <span class="n">B</span><span class="p">,</span>
+    <span class="n">Start</span><span class="p">,</span>
+    <span class="n">Menu</span><span class="p">,</span>
+    <span class="n">L</span><span class="p">,</span>
+    <span class="n">R</span><span class="p">,</span>
+    <span class="n">LB</span><span class="p">,</span>
+    <span class="n">RB</span><span class="p">,</span>
+    <span class="n">Up</span><span class="p">,</span>
+    <span class="n">Down</span><span class="p">,</span>
+    <span class="n">Left</span><span class="p">,</span>
+    <span class="n">Right</span>
+<span class="p">}</span>
+<span class="c1">//XBox输入轴枚举</span>
+<span class="k">public</span> <span class="k">enum</span> <span class="n">XboxAxis</span>
+<span class="p">{</span>
+    <span class="n">LX</span><span class="p">,</span>
+    <span class="n">LY</span><span class="p">,</span>
+    <span class="n">RX</span><span class="p">,</span>
+    <span class="n">RY</span><span class="p">,</span>
+    <span class="n">LT</span><span class="p">,</span>
+    <span class="n">RT</span>
+<span class="p">}</span>
+<span class="c1">//返回玩家手柄是否连接（最多支持4个玩家手柄连接）</span>
+<span class="kt">bool</span> <span class="nf">HasConnected</span><span class="p">(</span><span class="n">PlayerIndex</span> <span class="n">index</span><span class="p">);</span>
+<span class="c1">//获取已连接的玩家（手柄）数</span>
+<span class="kt">int</span> <span class="nf">GetConnectedPadNum</span><span class="p">();</span>
+
+<span class="c1">//在按钮按下时刻返回true</span>
+<span class="kt">bool</span> <span class="nf">GetButtonDown</span><span class="p">(</span><span class="n">PlayerIndex</span> <span class="n">index</span><span class="p">,</span> <span class="n">XboxButton</span> <span class="n">button</span><span class="p">);</span>
+<span class="c1">//在按钮按住的时刻返回true</span>
+<span class="kt">bool</span> <span class="nf">GetButton</span><span class="p">(</span><span class="n">PlayerIndex</span> <span class="n">index</span><span class="p">,</span> <span class="n">XboxButton</span> <span class="n">button</span><span class="p">);</span>
+<span class="c1">//在按钮抬起的时候返回true</span>
+<span class="kt">bool</span> <span class="nf">GetButtonUp</span><span class="p">(</span><span class="n">PlayerIndex</span> <span class="n">index</span><span class="p">,</span> <span class="n">XboxButton</span> <span class="n">button</span><span class="p">);</span>
+
+<span class="c1">//获取某一个轴的当前量</span>
+<span class="kt">float</span> <span class="nf">GetAxis</span><span class="p">(</span><span class="n">PlayerIndex</span> <span class="n">index</span><span class="p">,</span> <span class="n">XboxAxis</span> <span class="n">axis</span><span class="p">);</span>
+<span class="c1">//对某一个轴采取按钮式响应，即通过自定义比较参数，在大于/小于/等于比较值的时候返回true</span>
+<span class="kt">bool</span> <span class="nf">GetAxisAsButton</span><span class="p">(</span><span class="n">PlayerIndex</span> <span class="n">index</span><span class="p">,</span> <span class="n">XboxAxis</span> <span class="n">axis</span><span class="p">,</span> <span class="kt">float</span> <span class="n">cmpBase</span> <span class="p">=</span> <span class="m">0</span><span class="p">,</span> <span class="n">CompareType</span> <span class="n">cmp</span> <span class="p">=</span> <span class="n">CompareType</span><span class="p">.</span><span class="n">Greater</span><span class="p">);</span>
+<span class="c1">//对某一个轴采取按钮式响应，即通过自定义比较参数，在大于/小于/等于比较值的时候返回true</span>
+<span class="c1">//与GetAxisAsButton不同的是此方法只会在达成比较时返回一次</span>
+<span class="kt">bool</span> <span class="nf">GetAxisAsButtonDown</span><span class="p">(</span><span class="n">PlayerIndex</span> <span class="n">index</span><span class="p">,</span> <span class="n">XboxAxis</span> <span class="n">axis</span><span class="p">,</span> <span class="kt">float</span> <span class="n">cmpBase</span> <span class="p">=</span> <span class="m">0</span><span class="p">,</span> <span class="n">CompareType</span> <span class="n">cmp</span> <span class="p">=</span> <span class="n">CompareType</span><span class="p">.</span><span class="n">Greater</span><span class="p">);</span>
+
+<span class="c1">//设置左马达震动</span>
+<span class="k">void</span> <span class="nf">SetLeftVibration</span><span class="p">(</span><span class="n">PlayerIndex</span> <span class="n">index</span><span class="p">,</span> <span class="kt">float</span> <span class="n">strength</span><span class="p">);</span>
+<span class="c1">//设置右马达震动</span>
+<span class="k">void</span> <span class="nf">SetRightVibration</span><span class="p">(</span><span class="n">PlayerIndex</span> <span class="n">index</span><span class="p">,</span> <span class="kt">float</span> <span class="n">strength</span><span class="p">);</span>
+<span class="c1">//设置马达震动</span>
+<span class="k">void</span> <span class="nf">SetVibration</span><span class="p">(</span><span class="n">PlayerIndex</span> <span class="n">index</span><span class="p">,</span> <span class="kt">float</span> <span class="n">leftMotor</span><span class="p">,</span> <span class="kt">float</span> <span class="n">rightMotor</span><span class="p">);</span>
+<span class="c1">//停止所有马达的震动</span>
+<span class="k">void</span> <span class="nf">StopVibration</span><span class="p">(</span><span class="n">PlayerIndex</span> <span class="n">index</span><span class="p">);</span>
+
+</code></pre></div></div>
+<p>其中按钮与轴的对应关系如下图所示：<br />
+<img src="../assets/img/UnityInput/xboxone.png" alt="xinput xbox one" /></p>
+
+<p>这里只给出了XInput脚本的公共方法原型，具体此脚本可以<a href="../assets/downloadable/XInput.cs">点击此处下载</a>。</p>
+
+:ET

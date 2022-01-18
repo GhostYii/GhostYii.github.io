@@ -1,0 +1,46 @@
+I"�<hr />
+<h2 id="0x0-引言">0x0. 引言</h2>
+<p>在第三人称游戏中，功能完善的游戏控制器对最终游戏的体验能有非常大的提升。在Unity游戏引擎中自带了一个叫做“<a href="https://docs.unity3d.com/2020.3/Documentation/Manual/class-CharacterController.html" target="blank">CharacterController</a>”的组件，该组件不需要添加额外的Rigidbody与Collider组件，实现了玩家控制的一些基本功能。一般情况下，该组件可以满足不同游戏的基础需求，该组件拥有可调节的斜坡自动上坡、最小移动距离与台阶偏移量等参数。<br />
+本文将介绍一种使用Rigidbody与Collider组件的角色控制器中的斜坡与楼梯行走的处理办法。</p>
+
+<h2 id="0x1-为什么要处理楼梯与斜坡">0x1. 为什么要处理楼梯与斜坡？</h2>
+<p>对3D游戏中的角色控制器而言，最简单的处理方式就是在FixedUpdate中对Rigidbody进行移动，下面的代码演示了最简单的角色控制器的移动。</p>
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">public</span> <span class="k">class</span> <span class="nc">Movement</span> <span class="p">:</span> <span class="n">MonoBehaviour</span>
+<span class="p">{</span>
+    <span class="k">public</span> <span class="kt">float</span> <span class="n">moveSpeed</span> <span class="p">=</span> <span class="m">10f</span><span class="p">;</span>
+    <span class="k">public</span> <span class="n">Rigidbody</span> <span class="n">rb</span> <span class="p">=</span> <span class="k">null</span><span class="p">;</span>
+
+    <span class="k">private</span> <span class="n">Vector3</span> <span class="n">moveDelta</span> <span class="p">=</span> <span class="n">Vector3</span><span class="p">.</span><span class="n">zero</span><span class="p">;</span>
+
+    <span class="k">void</span> <span class="nf">Start</span><span class="p">()</span>
+    <span class="p">{</span>
+        <span class="n">rb</span> <span class="p">=</span> <span class="n">GetComponent</span><span class="p">&lt;</span><span class="n">Rigidbody</span><span class="p">&gt;();</span>
+    <span class="p">}</span>
+
+    <span class="k">void</span> <span class="nf">Update</span><span class="p">()</span>
+    <span class="p">{</span>
+        <span class="n">moveDelta</span><span class="p">.</span><span class="n">x</span> <span class="p">=</span> <span class="n">Input</span><span class="p">.</span><span class="nf">GetAxis</span><span class="p">(</span><span class="s">"Horizontal"</span><span class="p">);</span>
+        <span class="n">moveDelta</span><span class="p">.</span><span class="n">z</span> <span class="p">=</span> <span class="n">Input</span><span class="p">.</span><span class="nf">GetAxis</span><span class="p">(</span><span class="s">"Vertical"</span><span class="p">);</span>
+
+        <span class="n">Vector3</span> <span class="n">move</span> <span class="p">=</span> <span class="n">moveDelta</span> <span class="p">*</span> <span class="n">moveSpeed</span><span class="p">;</span>
+        <span class="n">move</span><span class="p">.</span><span class="n">y</span> <span class="p">=</span> <span class="n">rb</span><span class="p">.</span><span class="n">velocity</span><span class="p">.</span><span class="n">y</span><span class="p">;</span>
+
+        <span class="n">rb</span><span class="p">.</span><span class="n">velocity</span> <span class="p">=</span> <span class="n">move</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>这种移动方式在一些基本地形上行走勉勉强强可以使用，如下图所示。
+<img src="../assets/img/CharacterController/simple_move.gif" alt="simple_move" /></p>
+
+<p>但是该方式由于过于简陋，其弊端也非常明显，主要体现在以下几个方面：</p>
+<ul>
+  <li>当速度稍大的时候，斜坡的下坡会变得非常糟糕</li>
+  <li>完全无法跨越台阶一类的障碍物，需要进行跳跃操作</li>
+  <li>下楼梯完完全全是一场灾难
+具体的情况如下图所示。</li>
+</ul>
+
+<p><img src="../assets/img/CharacterController/move_error.gif" alt="move_error" /></p>
+
+<hr />
+:ET

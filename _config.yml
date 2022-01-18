@@ -14,7 +14,8 @@ bilibili_id: 12585812
 gplus_username:  null
 disqus_username: null
 
-gems: [jekyll-paginate]
+# gems: [jekyll-paginate]
+plugins: [jekyll-paginate]
 paginate: 10
 paginate_path: "page:num"
 
