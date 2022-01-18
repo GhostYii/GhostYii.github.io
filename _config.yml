@@ -1,0 +1,78 @@
+# Site settings
+title: Ghostyii | 远山长
+description: "Ghostyii的个人博客"
+baseurl: "" # for test: remove string '/space-jekyll-templa' to ''
+url: "https://GhostYii.github.io" # for test: remove string 'http://victorvoid.github.io' to '' but in production: 'https://yourusername.githu.io'
+# User settings
+username: GHOSTYII
+user_title: 月光 | 远山
+email: ghostyiigame@outlook.com
+twitter_username: null
+github_username:  GhostYii
+steam_id: 76561198223886292
+bilibili_id: 12585812
+gplus_username:  null
+disqus_username: null
+
+# gems: [jekyll-paginate]
+plugins: [jekyll-paginate]
+paginate: 10
+paginate_path: "page:num"
+
+# Build settings
+markdown: kramdown
+highlighter: rouge
+kramdown:
+  input: GFM
+  extensions:
+    - autolink
+    - footnotes
+    - smart
+  enable_coderay: true
+  syntax_highlighter: rouge
+  syntax_highlighter_opts:
+    coderay_line_numbers:  nil
+
+permalink: /:title/
+
+#Display filter
+hidetag: invisible
+
+#Google services
+google_analytics: UA-103564744-1
+
+# html minify
+compress_html:
+  clippings: all
+  comments: all
+  endings: []
+  profile: false
+
+# Links to include in menu navigation
+links:
+  - title: 主页
+    url: /
+#  - title: 文章列表
+#    url: /posts
+  - title: 归档
+    url: /series
+  - title: 标签
+    url: /tags
+  - title: 关于
+    url: /about
+# projects in header index
+projects:
+  - name: Light2D for Unity
+    url: https://github.com/GhostYii/Light2D
+    lastupdate: 2017-04-17
+  - name: InventorySystem
+    url: https://github.com/GhostYii/InventorySystem
+    lastupdate: 2017-04-13
+  - name: MiniMinesweeper
+    url: https://github.com/GhostYii/MiniMinesweeper
+    lastupdate: 2017-03-19
+  - name: Easy Gomoku
+    url: https://github.com/GhostYii/Workshop-gomoku
+    lastupdate: 2017-03-14
+# exclude my node related stuff
+exclude: ['package.json', 'src', 'node_modules']

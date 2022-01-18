@@ -1,0 +1,100 @@
+<header class="header-site" role="banner">
+    <div class="content">
+
+        <div class="person">
+            <img alt="My photo" src=..//assets//img//myphoto.png>
+        </div>
+
+        <h1>
+            <span class="site-title">{{site.username}}</span>
+        </h1>
+
+        <div class="icons-home">
+            <a aria-label="Send email" title="Send me a e-mail" href="mailto:{{site.email}}">
+                <svg class="icon icon-email"><use xlink:href="#icon-email"></use></svg>
+            </a>
+
+<!--
+            <a aria-label="My Twitter" title="Follow me on Twitter" target="_blank" href="https://twitter.com/{{site.twitter_username}}">
+                <svg class="icon icon-twitter"><use xlink:href="#icon-twitter"></use></svg>
+            </a>
+-->
+
+<!--
+            <a aria-label="My Google Plus" title="Show my feed" target="_blank" href="https://plus.google.com/u/0/+{{site.gplus_username}}/posts">
+                <svg class="icon icon-google-plus"><use xlink:href="#icon-google-plus"></use></svg>
+            </a>
+-->
+
+            <a aria-label="My Github" title="Visit my github homepage" target="_blank" href="https://github.com/{{site.github_username}}">
+                <svg class="icon icon-github-alt"><use xlink:href="#icon-github-alt"></use></svg>
+            </a>
+            <a aria-label="My Steam" title="Visit my steam" target="_blank" href="http://steamcommunity.com/profiles/{{site.steam_id}}">
+                <svg class="icon icon-steam"><use xlink:href="#icon-steam"></use></svg>
+            </a>
+            <a aria-label="Bilibili" title="Visit bilibili" target="_blank" href="http://space.bilibili.com/{{site.bilibili_id}}/#!//">
+                <svg class="icon icon-bilibili"><use xlink:href="#icon-bilibili"></use></svg>
+            </a>
+<!--
+            <a aria-label="Use the RSS to get updated" title="Register for my RSS" target="_blank" href="{{ "/feed.xml" | prepend: site.baseurl }}">
+                <svg class="icon icon-rss"><use xlink:href="#icon-rss"></use></svg>
+            </a>
+-->
+        </div>
+
+        <ul class="recent">
+            <p >文章列表:</p>
+             {% for post in paginator.posts limit:site.paginate %}
+                <li>
+                  {% if post.tags[0] == site.hidetag %}
+                    {% continue %}
+                  {% else %}
+                    <a title="" href="{{ post.url | prepend: site.baseurl }}">
+                        <h2 class="post-title" itemprop="name">{{ post.title }} - {{post.date | date: "%Y-%m-%d"}}</h2>
+                    </a>
+                  {% endif %}
+                </li>
+              {% endfor %}
+              {% if paginator.total_pages > 1 %}
+              <div class="pagination">
+                {% if paginator.previous_page %}
+                  <a style="color:#fff" href="{{ paginator.previous_page_path | prepend: site.baseurl | replace: '//', '/' }}">&laquo; 前一页</a>
+                {% else %}
+                  <span style="color:#2f2f33">&laquo;</span>
+                {% endif %}
+
+                {% for page in (1..paginator.total_pages) %}
+                  {% if page == paginator.page %}
+                    <span style="color:#2f2f33">{{ page }}</span>
+                  {% elsif page == 1 %}
+                    <a style="color:#fff" href="{{ '/index.html' | prepend: site.baseurl | replace: '//', '/' }}">{{ page }}</a>
+                  {% else %}
+                    <a style="color:#fff" href="{{ site.paginate_path | prepend: site.baseurl | replace: '//', '/' | replace: ':num', page }}">{{ page }}</a>
+                  {% endif %}
+                {% endfor %}
+
+                {% if paginator.next_page %}
+                  <a style="color:#fff" href="{{ paginator.next_page_path | prepend: site.baseurl | replace: '//', '/' }}">后一页 &raquo;</a>
+                {% else %}
+                  <span style="color:#2f2f33">&raquo;</span>
+                {% endif %}
+              </div>
+              {% endif %}
+        </ul>
+<!--
+        <ul class="list-container"></ul>
+
+        <ul class="recent">
+            <p>最近开源项目:</p>
+             {% for project in site.projects limit:3%}
+                <li>
+                    <a title="" href="{{ project.url}}">
+                        <h2 class="post-title" itemprop="name">[ {{ project.name}} ] - Last Update:{{project.lastupdate | date: "%Y-%m-%d"}}</h2>
+                    </a>
+                </li>
+              {% endfor %}
+        </ul>
+-->
+    </div>
+    {% include menu-search.html %}
+</header>

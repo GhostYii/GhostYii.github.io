@@ -1,0 +1,21 @@
+<div class="tree-posts">
+
+    <!--<h3>文章列表</h3>-->
+    <h2 style="text-align:center;text-decoration: none;color:white"> 文章列表 </h2>
+
+    {% for post in site.posts %}
+      {% if post.tags[0] == site.hidetag %}
+        {% continue %}
+      {% else %}
+        <article role="article" class="post-item" itemscope="itemscope" itemtype="http://schema.org/BlogPosting" itemprop="blogPost">
+            <div class="content">
+                <a title="Open the post" href="{{ post.url | prepend: site.baseurl }}">
+                    <h2 class="post-title" itemprop="name"> {{ post.title }}</h2>
+                </a>
+            </div>
+        </article>
+      {% endif %}
+
+    {% endfor %}
+
+</div>
