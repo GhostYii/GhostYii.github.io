@@ -1,9 +1,0 @@
-I"T<hr />
-<h2 id="0x0-引言">0x0. 引言</h2>
-<p>在第三人称游戏中，功能完善的游戏控制器对最终游戏的体验能有非常大的提升。在Unity游戏引擎中自带了一个叫做“<a href="https://docs.unity3d.com/2020.3/Documentation/Manual/class-CharacterController.html" target="blank">CharacterController</a>”的组件，该组件不需要添加额外的Rigidbody与Collider组件，实现了玩家控制的一些基本功能。一般情况下，该组件可以满足不同游戏的基础需求，该组件拥有可调节的斜坡自动上坡、最小移动距离与台阶偏移量等参数。<br />
-本文将介绍一种使用Rigidbody与Collider组件的角色控制器中的斜坡与楼梯行走的处理办法。</p>
-
-<h2 id="0x1-为什么要处理楼梯与斜坡">0x1. 为什么要处理楼梯与斜坡？</h2>
-
-<hr />
-:ET
