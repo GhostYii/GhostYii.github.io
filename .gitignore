@@ -4,3 +4,4 @@ node_modules
 _drafts
 .jekyll-cache/
 .jekyll-cache/Jekyll/
+.jekyll-cache
